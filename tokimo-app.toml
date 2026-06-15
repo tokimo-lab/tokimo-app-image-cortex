@@ -1,0 +1,24 @@
+[app]
+id          = "image-cortex"
+display     = "Image Cortex"
+version     = "0.1.0"
+description = "图片分析中间件 — OCR / 人脸 / CLIP / GPS 逆地理编码"
+
+[runtime]
+lifecycle    = "resident"
+binary       = "tokimo-app-image-cortex"
+ui_dist      = "ui/dist"
+
+[ui]
+entry        = "assets/index.js"
+window_type  = "image-cortex"
+category     = "app"
+icon         = "Brain"
+color        = "#6366f1"
+width        = 900
+height       = 700
+
+[database]
+schema         = "image_cortex"
+migrations_dir = "migrations"
+driver         = "postgres"
