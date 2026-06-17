@@ -30,6 +30,8 @@ export const zhCN: Record<string, string> = {
   province: "省",
   city: "市",
   district: "区",
+  pickFile: "选择文件",
+  pickImage: "选择图片",
 };
 
 export const enUS: Record<string, string> = {
@@ -64,4 +66,6 @@ export const enUS: Record<string, string> = {
   province: "Province",
   city: "City",
   district: "District",
+  pickFile: "Pick File",
+  pickImage: "Pick Image",
 };

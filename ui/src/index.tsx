@@ -53,7 +53,7 @@ function ImageCortexWindow({ ctx }: { ctx: AppRuntimeCtx }) {
       </header>
 
       <main className="flex-1 overflow-auto p-4">
-        {tab === "analyze" && <AnalyzePanel t={t} />}
+        {tab === "analyze" && <AnalyzePanel t={t} ctx={ctx} />}
         {tab === "health" && <HealthStatus t={t} />}
         {tab === "settings" && <SettingsPanel t={t} />}
       </main>

@@ -1,19 +1,31 @@
+import type { AppRuntimeCtx } from "@tokimo/sdk";
+import { FolderOpen } from "lucide-react";
 import { useState } from "react";
 import { api, type AnalyzeResponse, type AnalysisType } from "../api/client";
 import { ResultViewer } from "./ResultViewer";
 
 interface Props {
   t: (key: string) => string;
+  ctx: AppRuntimeCtx;
 }
 
 const ANALYSIS_TYPES: AnalysisType[] = ["ocr", "face", "clip", "gps", "all"];
 
-export function AnalyzePanel({ t }: Props) {
+export function AnalyzePanel({ t, ctx }: Props) {
   const [path, setPath] = useState("");
   const [analysisType, setAnalysisType] = useState<AnalysisType>("all");
   const [result, setResult] = useState<AnalyzeResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const handlePickFile = async () => {
+    const picked = await ctx.shell.pickFilePath({
+      title: t("pickImage"),
+    });
+    if (picked) {
+      setPath(picked);
+    }
+  };
 
   const handleAnalyze = async () => {
     if (!path.trim()) return;
@@ -41,6 +53,14 @@ export function AnalyzePanel({ t }: Props) {
           className="flex-1 rounded border border-black/10 dark:border-white/10 bg-transparent px-3 py-2 text-sm outline-none focus:border-[var(--color-accent)]"
           onKeyDown={(e) => e.key === "Enter" && handleAnalyze()}
         />
+        <button
+          type="button"
+          onClick={handlePickFile}
+          className="cursor-pointer rounded border border-black/10 dark:border-white/10 px-3 py-2 text-sm hover:bg-black/[0.05] dark:hover:bg-white/[0.05]"
+          title={t("pickFile")}
+        >
+          <FolderOpen size={16} />
+        </button>
         <button
           type="button"
           onClick={handleAnalyze}
