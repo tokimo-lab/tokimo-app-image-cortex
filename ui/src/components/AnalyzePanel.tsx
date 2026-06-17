@@ -1,20 +1,13 @@
 import type { AppRuntimeCtx } from "@tokimo/sdk";
-import { FolderOpen } from "lucide-react";
-import { useState } from "react";
+import { FolderOpen, X } from "lucide-react";
+import { useCallback, useState } from "react";
 import { api, type AnalyzeResponse, type AnalysisType } from "../api/client";
 import { ResultViewer } from "./ResultViewer";
+import { VfsFilePicker } from "./VfsFilePicker";
 
 interface Props {
   t: (key: string) => string;
   ctx: AppRuntimeCtx;
-}
-
-interface StorageBinding {
-  sourceId: string;
-  sourceType: string;
-  sourceName: string;
-  displayHints?: { protocolPrefix?: string };
-  path: string;
 }
 
 const ANALYSIS_TYPES: AnalysisType[] = ["ocr", "face", "clip", "gps", "all"];
@@ -27,19 +20,19 @@ export function AnalyzePanel({ t, ctx }: Props) {
   const [result, setResult] = useState<AnalyzeResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showPicker, setShowPicker] = useState(false);
 
   const fullPath = sourceId && path ? `vfs://${sourceId}${path}` : path;
 
-  const handlePickStorage = async () => {
-    const binding: StorageBinding | null = await ctx.shell.pickStorageBinding({
-      title: t("pickImage"),
-      initial: sourceId ? { sourceId, path } : undefined,
-    });
-    if (binding) {
-      setSourceId(binding.sourceId);
-      setSourceName(binding.sourceName);
-      setPath(binding.path);
-    }
+  const listSources = useCallback(async () => {
+    return await ctx.shell.listStorageSources();
+  }, [ctx]);
+
+  const handlePickerConfirm = (sid: string, sname: string, filePath: string) => {
+    setSourceId(sid);
+    setSourceName(sname);
+    setPath(filePath);
+    setShowPicker(false);
   };
 
   const handleAnalyze = async () => {
@@ -84,7 +77,7 @@ export function AnalyzePanel({ t, ctx }: Props) {
         </div>
         <button
           type="button"
-          onClick={handlePickStorage}
+          onClick={() => setShowPicker(!showPicker)}
           className="cursor-pointer rounded border border-black/10 dark:border-white/10 px-3 py-2 text-sm hover:bg-black/[0.05] dark:hover:bg-white/[0.05]"
           title={t("pickStorage")}
         >
@@ -116,6 +109,18 @@ export function AnalyzePanel({ t, ctx }: Props) {
           </button>
         ))}
       </div>
+
+      {showPicker && (
+        <div className="rounded border border-black/10 dark:border-white/10" style={{ height: 400 }}>
+          <VfsFilePicker
+            onConfirm={handlePickerConfirm}
+            onCancel={() => setShowPicker(false)}
+            listSources={listSources}
+            initialSourceId={sourceId}
+            initialPath={path || "/"}
+          />
+        </div>
+      )}
 
       {error && (
         <div className="rounded bg-red-500/10 px-3 py-2 text-sm text-red-500">{error}</div>
