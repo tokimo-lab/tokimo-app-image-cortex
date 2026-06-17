@@ -37,7 +37,7 @@ pub async fn run_analyze(path: String, analysis_type: String) -> anyhow::Result<
         },
     };
 
-    let image_bytes = services::image_loader::load_image_bytes(&req.path).await?;
+    let image_bytes = services::image_loader::load_image_bytes(&http_client, &req.path).await?;
 
     let response = match req.analysis_type {
         crate::handlers::analyze::AnalysisType::Ocr => {

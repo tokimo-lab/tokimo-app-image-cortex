@@ -46,7 +46,7 @@ pub async fn analyze(
     State(state): State<Arc<AppState>>,
     Json(req): Json<AnalyzeRequest>,
 ) -> Result<Json<AnalyzeResponse>, AppError> {
-    let image_bytes = services::image_loader::load_image_bytes(&req.path).await?;
+    let image_bytes = services::image_loader::load_image_bytes(&state.http_client, &req.path).await?;
 
     let geo_settings: crate::config::GeoSettings = {
         use crate::db::repos::system_config_repo::SystemConfigRepo;

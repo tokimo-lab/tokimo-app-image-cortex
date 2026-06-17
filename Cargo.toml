@@ -45,3 +45,4 @@ tokimo-package-client-api = { path = "../../packages/tokimo-package-client-api" 
 # ── External crates ──
 reqwest      = { workspace = true, features = ["stream"] }
 kamadak-exif = "0.6"
+urlencoding  = "2"
