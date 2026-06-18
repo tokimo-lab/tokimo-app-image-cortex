@@ -162,15 +162,6 @@ impl From<JobView> for Job {
     }
 }
 
-pub fn image_cortex_caller(user_id: Option<Uuid>) -> CallerCtx {
-    CallerCtx {
-        user_id: user_id.map(|id| id.to_string()),
-        request_id: Uuid::new_v4().to_string(),
-        workspace: None,
-        caller_app_id: Some("image-cortex".to_string()),
-    }
-}
-
 pub async fn create(client: &BusClient, caller: CallerCtx, request: CreateJobRequest) -> Result<Job, AppError> {
     let response = invoke_json(client, "create", caller, &request).await?;
     serde_json::from_slice::<JobView>(&response)

@@ -61,7 +61,7 @@ pub async fn analyze(
 
     let job = jobs::create(
         client,
-        jobs::image_cortex_caller(None),
+        client.auto_caller("image-cortex"),
         jobs::CreateJobRequest::new("image_cortex_process", params),
     )
     .await?;

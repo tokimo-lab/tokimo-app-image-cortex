@@ -36,7 +36,7 @@ pub async fn get_job(
 
     let response = jobs::query(
         client,
-        jobs::image_cortex_caller(None),
+        client.auto_caller("image-cortex"),
         jobs::QueryJobsRequest {
             id: Some(job_id),
             job_type: None,
@@ -73,7 +73,7 @@ pub async fn cancel_job(
 
     jobs::cancel(
         client,
-        jobs::image_cortex_caller(None),
+        client.auto_caller("image-cortex"),
         jobs::CancelJobRequest::new(job_id),
     )
     .await?;

@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use axum::{
     Router,
+    middleware,
     routing::{get, post},
 };
 use tokimo_bus_protocol::{BusListener, DataPlaneSocket};
@@ -41,5 +42,8 @@ fn build_router(ctx: Arc<AppState>) -> Router {
         )
         .route("/settings/geo/test", post(handlers::settings::test_geo))
         .route("/assets/{*path}", get(assets::serve))
+        .layer(middleware::from_fn(
+            tokimo_bus_protocol::task_local::auth_middleware,
+        ))
         .with_state(ctx)
 }
