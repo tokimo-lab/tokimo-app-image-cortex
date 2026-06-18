@@ -1,7 +1,15 @@
-import type { AnalyzeResponse } from "../api/client";
+import type { ClipResult, FaceResult, GpsResult, OcrResult } from "../api/client";
+
+interface AnalyzeResultData {
+  path: string;
+  ocr: OcrResult | null;
+  face: FaceResult | null;
+  clip: ClipResult | null;
+  gps: GpsResult | null;
+}
 
 interface Props {
-  result: AnalyzeResponse;
+  result: AnalyzeResultData;
   t: (key: string) => string;
 }
 

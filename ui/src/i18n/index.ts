@@ -34,6 +34,8 @@ export const zhCN: Record<string, string> = {
   pickImage: "选择图片",
   pickStorage: "选择存储源",
   pathOrPickPlaceholder: "输入路径或点击右侧按钮选择存储源",
+  jobSubmitted: "任务已提交",
+  analysisStatus: "分析状态",
 };
 
 export const enUS: Record<string, string> = {
@@ -72,4 +74,6 @@ export const enUS: Record<string, string> = {
   pickImage: "Pick Image",
   pickStorage: "Pick Storage Source",
   pathOrPickPlaceholder: "Enter path or click button to pick storage source",
+  jobSubmitted: "Job submitted",
+  analysisStatus: "Analysis status",
 };

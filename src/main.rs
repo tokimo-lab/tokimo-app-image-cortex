@@ -1,5 +1,5 @@
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 use clap::Parser;
 use tokimo_bus_cli::TokimoAuthArgs;
@@ -9,15 +9,17 @@ use tracing::{error, info};
 
 mod app_server;
 mod assets;
+mod bus_clients;
+mod bus_services;
 mod cli;
 mod config;
 mod db;
 mod error;
 mod handlers;
+mod queue;
 mod services;
 mod state;
 
-use crate::db::repos::system_config_repo::SystemConfigSection;
 use crate::state::AppState;
 
 const MANIFEST: &str = include_str!("../tokimo-app.toml");
@@ -64,8 +66,9 @@ async fn main() -> anyhow::Result<()> {
         None if std::env::var_os("TOKIMO_BUS_SOCKET").is_some() => {
             tracing_subscriber::fmt()
                 .with_env_filter(
-                    tracing_subscriber::EnvFilter::try_from_default_env()
-                        .unwrap_or_else(|_| "info,tokimo_bus_client=info,tokimo_app_image_cortex=debug".into()),
+                    tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
+                        "info,tokimo_bus_client=info,tokimo_app_image_cortex=debug".into()
+                    }),
                 )
                 .init();
             if let Err(error) = run_server().await {
@@ -99,13 +102,6 @@ async fn run_server() -> anyhow::Result<()> {
     let db = db::init_pool().await?;
     info!("image-cortex: db connected (schema managed by host)");
 
-    let _ai_settings: config::AiSettings = {
-        use crate::db::repos::system_config_repo::SystemConfigRepo;
-        SystemConfigRepo::get(&db)
-            .await
-            .unwrap_or_else(|_| config::AiSettings::default_value())
-    };
-
     let ai_worker = AiWorkerClient::from_settings(
         &tokimo_perception::worker::client::AiWorkerSettings {
             mode: tokimo_perception::worker::client::AiWorkerMode::Auto,
@@ -119,24 +115,44 @@ async fn run_server() -> anyhow::Result<()> {
         &data_local_path(),
     );
 
+    let client_slot: Arc<OnceLock<Arc<BusClient>>> = Arc::new(OnceLock::new());
+
     let ctx = Arc::new(AppState {
         db,
         ai_worker,
         http_client: reqwest::Client::new(),
+        bus_client: Arc::clone(&client_slot),
     });
 
     let app_socket = app_server::spawn("image-cortex", Arc::clone(&ctx))
         .await
         .map_err(|e| anyhow::anyhow!("app_server spawn: {e}"))?;
 
-    let client = BusClient::builder(cfg)
+    let builder = BusClient::builder(cfg)
         .service("image-cortex", env!("CARGO_PKG_VERSION"))
-        .data_plane(app_socket)
+        .data_plane(app_socket);
+
+    let builder = bus_services::image_cortex_jobs::register(builder, Arc::clone(&ctx));
+
+    let client = builder
         .build()
         .await
         .map_err(|e| anyhow::anyhow!("bus build: {e}"))?;
 
+    client_slot
+        .set(Arc::clone(&client))
+        .map_err(|_| anyhow::anyhow!("client_slot already set"))?;
+
     info!("image-cortex: registered with broker");
+
+    bus_clients::jobs::register_handler(
+        &client,
+        "image_cortex_process",
+        "dispatch_image_cortex_process",
+    )
+    .await?;
+
+    info!("image-cortex: job handler registered");
 
     let shutdown = {
         let client = Arc::clone(&client);

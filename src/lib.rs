@@ -6,10 +6,13 @@ use axum::{
 
 pub(crate) const MANIFEST: &str = include_str!("../tokimo-app.toml");
 
+pub mod bus_clients;
+pub mod bus_services;
 pub mod config;
 pub mod db;
 pub mod error;
 pub mod handlers;
+pub mod queue;
 pub mod services;
 pub mod state;
 

@@ -3,10 +3,10 @@ use std::sync::Arc;
 use axum::{Json, extract::State};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
+use uuid::Uuid;
 
-use crate::db::repos::system_config_repo::SystemConfigSection;
+use crate::bus_clients::jobs;
 use crate::error::AppError;
-use crate::services;
 use crate::state::AppState;
 
 #[derive(Debug, Clone, Deserialize)]
@@ -35,59 +35,36 @@ pub struct AnalyzeRequest {
 #[derive(TS)]
 #[ts(export)]
 pub struct AnalyzeResponse {
-    pub path: String,
-    pub ocr: Option<services::ocr::OcrResult>,
-    pub face: Option<services::face::FaceResult>,
-    pub clip: Option<services::clip::ClipResult>,
-    pub gps: Option<services::geo::GpsResult>,
+    #[ts(type = "string")]
+    pub job_id: Uuid,
 }
 
 pub async fn analyze(
     State(state): State<Arc<AppState>>,
     Json(req): Json<AnalyzeRequest>,
 ) -> Result<Json<AnalyzeResponse>, AppError> {
-    let image_bytes = services::image_loader::load_image_bytes(&state.http_client, &req.path).await?;
+    let client = state
+        .bus_client
+        .get()
+        .ok_or_else(|| AppError::Internal("BusClient not yet bound".into()))?;
 
-    let geo_settings: crate::config::GeoSettings = {
-        use crate::db::repos::system_config_repo::SystemConfigRepo;
-        SystemConfigRepo::get(&state.db)
-            .await
-            .unwrap_or_else(|_| crate::config::GeoSettings::default_value())
-    };
+    let params = serde_json::json!({
+        "path": req.path,
+        "analysisType": match req.analysis_type {
+            AnalysisType::Ocr => "ocr",
+            AnalysisType::Face => "face",
+            AnalysisType::Clip => "clip",
+            AnalysisType::Gps => "gps",
+            AnalysisType::All => "all",
+        },
+    });
 
-    let (ocr, face, clip, gps) = match req.analysis_type {
-        AnalysisType::Ocr => {
-            let ocr = services::ocr::analyze(&state.ai_worker, image_bytes).await?;
-            (Some(ocr), None, None, None)
-        }
-        AnalysisType::Face => {
-            let face = services::face::analyze(&state.ai_worker, image_bytes).await?;
-            (None, Some(face), None, None)
-        }
-        AnalysisType::Clip => {
-            let clip = services::clip::analyze(&state.ai_worker, image_bytes).await?;
-            (None, None, Some(clip), None)
-        }
-        AnalysisType::Gps => {
-            let gps = services::geo::analyze(&state.http_client, &image_bytes, &geo_settings).await?;
-            (None, None, None, Some(gps))
-        }
-        AnalysisType::All => {
-            let (ocr_r, face_r, clip_r, gps_r) = tokio::join!(
-                services::ocr::analyze(&state.ai_worker, image_bytes.clone()),
-                services::face::analyze(&state.ai_worker, image_bytes.clone()),
-                services::clip::analyze(&state.ai_worker, image_bytes.clone()),
-                services::geo::analyze(&state.http_client, &image_bytes, &geo_settings),
-            );
-            (ocr_r.ok(), face_r.ok(), clip_r.ok(), gps_r.ok())
-        }
-    };
+    let job = jobs::create(
+        client,
+        jobs::image_cortex_caller(None),
+        jobs::CreateJobRequest::new("image_cortex_process", params),
+    )
+    .await?;
 
-    Ok(Json(AnalyzeResponse {
-        path: req.path,
-        ocr,
-        face,
-        clip,
-        gps,
-    }))
+    Ok(Json(AnalyzeResponse { job_id: job.id }))
 }

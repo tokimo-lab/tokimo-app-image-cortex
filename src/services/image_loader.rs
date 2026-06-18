@@ -6,7 +6,7 @@ const NEEDS_FFMPEG_DECODE: &[&str] = &[
     ".heic", ".heif", ".avif", ".raw", ".cr2", ".cr3", ".nef", ".arw", ".dng", ".orf", ".rw2", ".pef", ".srw", ".raf",
 ];
 
-const FFMPEG_TIMEOUT: Duration = Duration::from_secs(30);
+const FFMPEG_TIMEOUT: Duration = Duration::from_secs(25);
 
 pub async fn load_image_bytes(http: &reqwest::Client, path: &str) -> Result<Vec<u8>, AppError> {
     if path.starts_with("vfs://") {

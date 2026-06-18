@@ -1,6 +1,8 @@
+export type AnalysisType = "ocr" | "face" | "clip" | "gps" | "all";
+
 export interface AnalyzeRequest {
   path: string;
-  analysisType: "ocr" | "face" | "clip" | "gps" | "all";
+  analysisType: AnalysisType;
 }
 
 export interface OcrItem {
@@ -53,6 +55,18 @@ export interface AnalyzeResponse {
   gps: GpsResult | null;
 }
 
+export interface AnalyzeJobResponse {
+  jobId: string;
+}
+
+export interface JobStatusResponse {
+  id: string;
+  status: string;
+  progress: number;
+  data: unknown;
+  error: string | null;
+}
+
 export interface HealthResponse {
   status: string;
   aiWorkerReady: boolean;
@@ -100,10 +114,15 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
 export const api = {
   analyze: (req: AnalyzeRequest) =>
-    request<AnalyzeResponse>("/analyze", {
+    request<AnalyzeJobResponse>("/analyze", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(req),
+    }),
+  getJob: (jobId: string) => request<JobStatusResponse>(`/jobs/${jobId}`),
+  cancelJob: (jobId: string) =>
+    request<{ success: boolean }>(`/jobs/${jobId}/cancel`, {
+      method: "POST",
     }),
   health: () => request<HealthResponse>("/health"),
   capabilities: () => request<CapabilitiesResponse>("/capabilities"),
@@ -122,12 +141,16 @@ export const api = {
       body: JSON.stringify(settings),
     }),
   testGeo: (lat: number, lon: number) =>
-    request<{ success: boolean; province?: string; city?: string; district?: string; formattedAddress?: string; error?: string }>(
-      "/settings/geo/test",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lat, lon }),
-      },
-    ),
+    request<{
+      success: boolean;
+      province?: string;
+      city?: string;
+      district?: string;
+      formattedAddress?: string;
+      error?: string;
+    }>("/settings/geo/test", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ lat, lon }),
+    }),
 };

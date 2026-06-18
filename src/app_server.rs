@@ -27,6 +27,8 @@ pub async fn spawn(service: &str, ctx: Arc<AppState>) -> anyhow::Result<DataPlan
 fn build_router(ctx: Arc<AppState>) -> Router {
     Router::new()
         .route("/analyze", post(handlers::analyze::analyze))
+        .route("/jobs/{job_id}", get(handlers::jobs::get_job))
+        .route("/jobs/{job_id}/cancel", post(handlers::jobs::cancel_job))
         .route("/health", get(handlers::health::health))
         .route("/capabilities", get(handlers::health::capabilities))
         .route(

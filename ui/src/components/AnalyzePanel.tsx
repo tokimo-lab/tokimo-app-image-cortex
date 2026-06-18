@@ -1,7 +1,14 @@
 import type { AppRuntimeCtx } from "@tokimo/sdk";
+import { useJobSubscription } from "@tokimo/sdk";
 import { FolderOpen } from "lucide-react";
-import { useState } from "react";
-import { api, type AnalyzeResponse, type AnalysisType } from "../api/client";
+import { useCallback, useRef, useState } from "react";
+import {
+  api,
+  type AnalyzeResponse,
+  type AnalysisType,
+  type JobStatusResponse,
+} from "../api/client";
+import { JobProgress } from "./JobProgress";
 import { ResultViewer } from "./ResultViewer";
 
 interface Props {
@@ -16,11 +23,26 @@ export function AnalyzePanel({ t, ctx }: Props) {
   const [sourceName, setSourceName] = useState("");
   const [path, setPath] = useState("");
   const [analysisType, setAnalysisType] = useState<AnalysisType>("all");
-  const [result, setResult] = useState<AnalyzeResponse | null>(null);
+  const [jobId, setJobId] = useState<string | null>(null);
+  const [jobResult, setJobResult] = useState<JobStatusResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const completedRef = useRef(false);
 
   const fullPath = sourceId && path ? `vfs://${sourceId}${path}` : path;
+
+  useJobSubscription(jobId, (event) => {
+    const job = (event.data as { job?: JobStatusResponse })?.job;
+    if (job) {
+      setJobResult(job);
+      if (
+        (job.status === "completed" || job.status === "failed") &&
+        !completedRef.current
+      ) {
+        completedRef.current = true;
+      }
+    }
+  });
 
   const handlePickFile = async () => {
     const binding = await ctx.shell.pickStorageBinding({
@@ -40,16 +62,23 @@ export function AnalyzePanel({ t, ctx }: Props) {
     if (!target) return;
     setLoading(true);
     setError(null);
-    setResult(null);
+    setJobId(null);
+    setJobResult(null);
+    completedRef.current = false;
     try {
       const resp = await api.analyze({ path: target, analysisType });
-      setResult(resp);
+      setJobId(resp.jobId);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }
   };
+
+  const finalResult =
+    jobResult?.status === "completed" && jobResult.data
+      ? (jobResult.data as AnalyzeResponse)
+      : null;
 
   return (
     <div className="flex flex-col gap-4">
@@ -70,7 +99,9 @@ export function AnalyzePanel({ t, ctx }: Props) {
                 setSourceName("");
               }
             }}
-            placeholder={sourceId ? t("pathPlaceholder") : t("pathOrPickPlaceholder")}
+            placeholder={
+              sourceId ? t("pathPlaceholder") : t("pathOrPickPlaceholder")
+            }
             className="flex-1 bg-transparent outline-none min-w-0"
             onKeyDown={(e) => e.key === "Enter" && handleAnalyze()}
           />
@@ -111,10 +142,14 @@ export function AnalyzePanel({ t, ctx }: Props) {
       </div>
 
       {error && (
-        <div className="rounded bg-red-500/10 px-3 py-2 text-sm text-red-500">{error}</div>
+        <div className="rounded bg-red-500/10 px-3 py-2 text-sm text-red-500">
+          {error}
+        </div>
       )}
 
-      {result && <ResultViewer result={result} t={t} />}
+      {jobId && <JobProgress jobId={jobId} result={jobResult} t={t} />}
+
+      {finalResult && <ResultViewer result={finalResult} t={t} />}
     </div>
   );
 }
