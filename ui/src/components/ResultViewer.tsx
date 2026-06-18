@@ -31,7 +31,7 @@ export function ResultViewer({ result, t }: Props) {
           ) : (
             <div className="flex flex-col gap-1">
               {result.ocr.items.map((item, i) => (
-                <div key={i} className="flex items-start gap-2 text-xs">
+                <div key={`${item.text}-${i}`} className="flex items-start gap-2 text-xs">
                   <span className="shrink-0 rounded bg-black/[0.05] dark:bg-white/[0.05] px-1.5 py-0.5 font-mono">
                     {item.score != null
                       ? `${(item.score * 100).toFixed(0)}%`
@@ -54,7 +54,7 @@ export function ResultViewer({ result, t }: Props) {
             <div className="flex flex-col gap-2">
               {result.face.faces.map((face, i) => (
                 <div
-                  key={i}
+                  key={`${face.x}-${face.y}-${i}`}
                   className="rounded bg-black/[0.03] dark:bg-white/[0.03] p-2 text-xs"
                 >
                   <div>
