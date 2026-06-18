@@ -1,8 +1,12 @@
+use std::time::Duration;
+
 use crate::error::AppError;
 
 const NEEDS_FFMPEG_DECODE: &[&str] = &[
     ".heic", ".heif", ".avif", ".raw", ".cr2", ".cr3", ".nef", ".arw", ".dng", ".orf", ".rw2", ".pef", ".srw", ".raf",
 ];
+
+const FFMPEG_TIMEOUT: Duration = Duration::from_secs(30);
 
 pub async fn load_image_bytes(http: &reqwest::Client, path: &str) -> Result<Vec<u8>, AppError> {
     if path.starts_with("vfs://") {
@@ -97,7 +101,8 @@ async fn load_local_bytes(path: &str) -> Result<Vec<u8>, AppError> {
 
 async fn convert_to_jpeg(bytes: Vec<u8>, filename: &str) -> Result<Vec<u8>, AppError> {
     let fname = filename.to_string();
-    let result = tokio::task::spawn_blocking(move || {
+    let input_len = bytes.len();
+    let handle = tokio::task::spawn_blocking(move || {
         use tokimo_package_ffmpeg::image::{ImageDecodeOptions, ImageFormat, decode_image_from_bytes};
 
         let opts = ImageDecodeOptions {
@@ -106,10 +111,18 @@ async fn convert_to_jpeg(bytes: Vec<u8>, filename: &str) -> Result<Vec<u8>, AppE
             quality: 2,
         };
         decode_image_from_bytes(&bytes, &fname, &opts)
-    })
-    .await
-    .map_err(|e| AppError::Internal(format!("task join error: {e}")))?
-    .map_err(|e| AppError::Internal(format!("FFI decode failed for {filename}: {e}")))?;
+    });
 
+    let result = tokio::time::timeout(FFMPEG_TIMEOUT, handle)
+        .await
+        .map_err(|_| AppError::Internal(format!("FFmpeg timeout for {filename} ({FFMPEG_TIMEOUT:?})")))?
+        .map_err(|e| AppError::Internal(format!("task join error: {e}")))?
+        .map_err(|e| AppError::Internal(format!("FFI decode failed for {filename}: {e}")))?;
+
+    tracing::info!(
+        "[image-cortex] Converted {filename} ({} KB) → JPEG ({} KB) via FFI",
+        input_len / 1024,
+        result.len() / 1024
+    );
     Ok(result)
 }
