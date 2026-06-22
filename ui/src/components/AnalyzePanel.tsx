@@ -1,7 +1,7 @@
 import type { AppRuntimeCtx } from "@tokimo/sdk";
 import { useJobSubscription } from "@tokimo/sdk";
 import { FolderOpen } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   type AnalysisType,
   type AnalyzeResponse,
@@ -31,6 +31,7 @@ export function AnalyzePanel({ t, ctx }: Props) {
 
   const fullPath = sourceId && path ? `vfs://${sourceId}${path}` : path;
 
+  // WS-first: subscribe to real-time updates.
   useJobSubscription(jobId, (event) => {
     const job = (event.data as { job?: JobStatusResponse })?.job;
     if (job) {
@@ -43,6 +44,25 @@ export function AnalyzePanel({ t, ctx }: Props) {
       }
     }
   });
+
+  // Initial state sync: fetch current job state immediately after subscribing
+  // to close the race window between job creation and WS subscription.
+  useEffect(() => {
+    if (!jobId) return;
+    if (completedRef.current) return;
+
+    api
+      .getJob(jobId)
+      .then((job) => {
+        setJobResult(job);
+        if (job.status === "completed" || job.status === "failed") {
+          completedRef.current = true;
+        }
+      })
+      .catch(() => {
+        // job may not exist yet, WS will deliver updates
+      });
+  }, [jobId]);
 
   const handlePickFile = async () => {
     const binding = await ctx.shell.pickStorageBinding({
