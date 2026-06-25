@@ -1,8 +1,50 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { Button, Input, Select, Spin, Switch } from "@tokimo/ui";
 import { type AiSettings, api, type GeoSettings } from "../api/client";
 
 interface Props {
   t: (key: string) => string;
+}
+
+const GEO_PROVIDER_OPTIONS = [
+  { value: "amap", label: "Amap (高德)" },
+  { value: "qqmap", label: "QQ Map (腾讯)" },
+  { value: "tianditu", label: "Tianditu (天地图)" },
+  { value: "mapbox", label: "Mapbox" },
+  { value: "maptiler", label: "MapTiler" },
+];
+
+function getGeoApiKey(geo: GeoSettings): string {
+  switch (geo.provider) {
+    case "qqmap":
+      return geo.qqmapApiKey ?? "";
+    case "tianditu":
+      return geo.tiandituServerKey ?? "";
+    case "mapbox":
+      return geo.mapboxAccessToken ?? "";
+    case "maptiler":
+      return geo.maptilerApiKey ?? "";
+    case "amap":
+    default:
+      return geo.amapApiKey ?? "";
+  }
+}
+
+function setGeoApiKey(geo: GeoSettings, value: string): GeoSettings {
+  const apiKey = value || null;
+  switch (geo.provider) {
+    case "qqmap":
+      return { ...geo, qqmapApiKey: apiKey };
+    case "tianditu":
+      return { ...geo, tiandituServerKey: apiKey };
+    case "mapbox":
+      return { ...geo, mapboxAccessToken: apiKey };
+    case "maptiler":
+      return { ...geo, maptilerApiKey: apiKey };
+    case "amap":
+    default:
+      return { ...geo, amapApiKey: apiKey };
+  }
 }
 
 export function SettingsPanel({ t }: Props) {
@@ -40,94 +82,103 @@ export function SettingsPanel({ t }: Props) {
     }
   };
 
-  if (loading) return <div className="text-sm opacity-50">Loading...</div>;
+  if (loading) {
+    return (
+      <div className="flex h-32 items-center justify-center text-fg-muted">
+        <Spin />
+      </div>
+    );
+  }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex max-w-2xl flex-col gap-6">
       {geo && (
-        <section className="flex flex-col gap-3">
-          <h3 className="text-sm font-semibold">{t("geoSettings")}</h3>
-          <label className="flex items-center gap-2 text-xs">
-            <span>{t("enabled")}</span>
-            <input
-              type="checkbox"
+        <section className="space-y-3">
+          <h3 className="text-sm font-semibold text-fg-primary">
+            {t("geoSettings")}
+          </h3>
+          <SettingRow label={t("enabled")}>
+            <Switch
               checked={geo.enabled}
-              onChange={(e) => setGeo({ ...geo, enabled: e.target.checked })}
+              onChange={(enabled) => setGeo({ ...geo, enabled })}
             />
-          </label>
-          <label className="flex flex-col gap-1 text-xs">
-            <span>{t("provider")}</span>
-            <select
+          </SettingRow>
+          <SettingRow label={t("provider")}>
+            <Select
               value={geo.provider}
-              onChange={(e) => setGeo({ ...geo, provider: e.target.value })}
-              className="rounded border border-black/10 dark:border-white/10 bg-transparent px-2 py-1.5 text-xs"
-            >
-              <option value="amap">Amap (高德)</option>
-              <option value="qqmap">QQ Map (腾讯)</option>
-              <option value="tianditu">Tianditu (天地图)</option>
-              <option value="mapbox">Mapbox</option>
-              <option value="maptiler">MapTiler</option>
-            </select>
-          </label>
-          <label className="flex flex-col gap-1 text-xs">
-            <span>{t("apiKey")}</span>
-            <input
-              type="password"
-              value={geo.amapApiKey ?? ""}
-              onChange={(e) =>
-                setGeo({ ...geo, amapApiKey: e.target.value || null })
+              onChange={(provider) =>
+                setGeo({ ...geo, provider: String(provider) })
               }
-              className="rounded border border-black/10 dark:border-white/10 bg-transparent px-2 py-1.5 text-xs"
+              options={GEO_PROVIDER_OPTIONS}
+              className="w-56"
             />
-          </label>
-          <button
-            type="button"
+          </SettingRow>
+          <SettingRow label={t("apiKey")}>
+            <Input.Password
+              value={getGeoApiKey(geo)}
+              onChange={(e) => setGeo(setGeoApiKey(geo, e.target.value))}
+              className="w-72"
+            />
+          </SettingRow>
+          <Button
+            variant="primary"
+            size="small"
             onClick={handleSaveGeo}
-            disabled={saving}
-            className="cursor-pointer self-start rounded bg-[var(--color-accent)] px-3 py-1.5 text-xs text-white disabled:opacity-50"
+            loading={saving}
           >
             {t("save")}
-          </button>
+          </Button>
         </section>
       )}
 
       {ai && (
-        <section className="flex flex-col gap-3">
-          <h3 className="text-sm font-semibold">{t("aiSettings")}</h3>
-          <label className="flex items-center gap-2 text-xs">
-            <span>OCR</span>
-            <input
-              type="checkbox"
+        <section className="space-y-3">
+          <h3 className="text-sm font-semibold text-fg-primary">
+            {t("aiSettings")}
+          </h3>
+          <SettingRow label="OCR">
+            <Switch
               checked={ai.ocrEnabled}
-              onChange={(e) => setAi({ ...ai, ocrEnabled: e.target.checked })}
+              onChange={(ocrEnabled) => setAi({ ...ai, ocrEnabled })}
             />
-          </label>
-          <label className="flex items-center gap-2 text-xs">
-            <span>Face</span>
-            <input
-              type="checkbox"
+          </SettingRow>
+          <SettingRow label="Face">
+            <Switch
               checked={ai.faceEnabled}
-              onChange={(e) => setAi({ ...ai, faceEnabled: e.target.checked })}
+              onChange={(faceEnabled) => setAi({ ...ai, faceEnabled })}
             />
-          </label>
-          <label className="flex items-center gap-2 text-xs">
-            <span>CLIP</span>
-            <input
-              type="checkbox"
+          </SettingRow>
+          <SettingRow label="CLIP">
+            <Switch
               checked={ai.clipEnabled}
-              onChange={(e) => setAi({ ...ai, clipEnabled: e.target.checked })}
+              onChange={(clipEnabled) => setAi({ ...ai, clipEnabled })}
             />
-          </label>
-          <button
-            type="button"
+          </SettingRow>
+          <Button
+            variant="primary"
+            size="small"
             onClick={handleSaveAi}
-            disabled={saving}
-            className="cursor-pointer self-start rounded bg-[var(--color-accent)] px-3 py-1.5 text-xs text-white disabled:opacity-50"
+            loading={saving}
           >
             {t("save")}
-          </button>
+          </Button>
         </section>
       )}
+    </div>
+  );
+}
+
+function SettingRow({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex min-h-8 items-center justify-between gap-4 text-xs">
+      <span className="text-fg-secondary">{label}</span>
+      <div className="flex min-w-0 justify-end">{children}</div>
     </div>
   );
 }
