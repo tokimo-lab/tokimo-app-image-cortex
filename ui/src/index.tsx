@@ -25,6 +25,13 @@ type Tab = "analyze" | "health" | "settings";
 function ImageCortexWindow({ ctx }: { ctx: AppRuntimeCtx }) {
   const t = makeTranslator({ "zh-CN": zhCN, "en-US": enUS }, ctx.locale);
   const [tab, setTab] = useState<Tab>("analyze");
+  const openAiModels = () => {
+    ctx.shell.windowManager.openWindow({
+      type: "system",
+      title: t("aiModelManagement"),
+      metadata: { pageId: "ai-models" },
+    });
+  };
 
   return (
     <div className="flex h-full w-full flex-col bg-surface-base text-fg-primary">
@@ -55,7 +62,9 @@ function ImageCortexWindow({ ctx }: { ctx: AppRuntimeCtx }) {
       <main className="flex-1 overflow-auto p-4">
         {tab === "analyze" && <AnalyzePanel t={t} ctx={ctx} />}
         {tab === "health" && <HealthStatus t={t} />}
-        {tab === "settings" && <SettingsPanel t={t} />}
+        {tab === "settings" && (
+          <SettingsPanel t={t} onOpenAiModels={openAiModels} />
+        )}
       </main>
     </div>
   );

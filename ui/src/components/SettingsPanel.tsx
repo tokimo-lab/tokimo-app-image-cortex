@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  Button,
   Input,
   Select,
   SettingGroup,
@@ -7,10 +8,17 @@ import {
   Spin,
   StickySaveBar,
 } from "@tokimo/ui";
+import { ExternalLink } from "lucide-react";
 import { type AiSettings, api, type GeoSettings } from "../api/client";
+import {
+  DEFAULT_AUX_MODEL,
+  OCR_DETECTION_MODELS,
+  OCR_MODELS,
+} from "../lib/ocr-models";
 
 interface Props {
   t: (key: string) => string;
+  onOpenAiModels: () => void;
 }
 
 const GEO_PROVIDER_OPTIONS = [
@@ -54,7 +62,7 @@ function setGeoApiKey(geo: GeoSettings, value: string): GeoSettings {
   }
 }
 
-export function SettingsPanel({ t }: Props) {
+export function SettingsPanel({ t, onOpenAiModels }: Props) {
   const [geo, setGeo] = useState<GeoSettings | null>(null);
   const [ai, setAi] = useState<AiSettings | null>(null);
   const [initialGeo, setInitialGeo] = useState<GeoSettings | null>(null);
@@ -150,15 +158,11 @@ export function SettingsPanel({ t }: Props) {
                 className="w-56"
               />
             </SettingRow>
-            <SettingRow
-              orientation="vertical"
-              label={t("apiKey")}
-              desc={t("apiKeyDesc")}
-            >
+            <SettingRow label={t("apiKey")} desc={t("apiKeyDesc")}>
               <Input.Password
                 value={getGeoApiKey(geo)}
                 onChange={(e) => setGeo(setGeoApiKey(geo, e.target.value))}
-                className="w-full max-w-md"
+                className="w-80 max-w-full"
               />
             </SettingRow>
           </SettingGroup>
@@ -169,25 +173,45 @@ export function SettingsPanel({ t }: Props) {
             title={t("aiSettings")}
             desc={t("aiSettingsDescription")}
           >
-            <SettingRow label="OCR" desc={t("ocrDesc")}>
-              <Input
+            <SettingRow
+              label={t("aiModelManagement")}
+              desc={t("aiModelManagementDesc")}
+            >
+              <Button
+                size="small"
+                icon={<ExternalLink className="h-4 w-4" />}
+                onClick={onOpenAiModels}
+              >
+                {t("openAiModelManagement")}
+              </Button>
+            </SettingRow>
+            <SettingRow label={t("ocrRecognitionModel")} desc={t("ocrDesc")}>
+              <Select
                 value={ai.ocrModelName}
-                onChange={(e) =>
-                  setAi({ ...ai, ocrModelName: e.target.value })
+                onChange={(value) =>
+                  setAi({ ...ai, ocrModelName: String(value) })
                 }
                 className="w-56"
+                options={OCR_MODELS.map((model) => ({
+                  value: model.id,
+                  label: model.name,
+                }))}
               />
             </SettingRow>
             <SettingRow label={t("ocrAuxModel")} desc={t("ocrAuxModelDesc")}>
-              <Input
-                value={ai.ocrAuxModelName ?? ""}
-                onChange={(e) =>
+              <Select
+                value={ai.ocrAuxModelName ?? DEFAULT_AUX_MODEL}
+                onChange={(value) =>
                   setAi({
                     ...ai,
-                    ocrAuxModelName: e.target.value || null,
+                    ocrAuxModelName: String(value),
                   })
                 }
                 className="w-56"
+                options={OCR_DETECTION_MODELS.map((model) => ({
+                  value: model.id,
+                  label: model.name,
+                }))}
               />
             </SettingRow>
           </SettingGroup>
