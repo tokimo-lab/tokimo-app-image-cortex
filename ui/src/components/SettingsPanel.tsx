@@ -98,6 +98,10 @@ export function SettingsPanel({ t, onOpenAiModels }: Props) {
   );
 
   const dirty = geoDirty || aiDirty;
+  const selectedOcrModel = OCR_MODELS.find(
+    (model) => model.id === ai?.ocrModelName,
+  );
+  const needsDetectionModel = selectedOcrModel?.supportsBlocks === false;
 
   const handleSaveSettings = async () => {
     if (!dirty) return;
@@ -178,7 +182,6 @@ export function SettingsPanel({ t, onOpenAiModels }: Props) {
               desc={t("aiModelManagementDesc")}
             >
               <Button
-                size="small"
                 icon={<ExternalLink className="h-4 w-4" />}
                 onClick={onOpenAiModels}
               >
@@ -198,22 +201,24 @@ export function SettingsPanel({ t, onOpenAiModels }: Props) {
                 }))}
               />
             </SettingRow>
-            <SettingRow label={t("ocrAuxModel")} desc={t("ocrAuxModelDesc")}>
-              <Select
-                value={ai.ocrAuxModelName ?? DEFAULT_AUX_MODEL}
-                onChange={(value) =>
-                  setAi({
-                    ...ai,
-                    ocrAuxModelName: String(value),
-                  })
-                }
-                className="w-56"
-                options={OCR_DETECTION_MODELS.map((model) => ({
-                  value: model.id,
-                  label: model.name,
-                }))}
-              />
-            </SettingRow>
+            {needsDetectionModel && (
+              <SettingRow label={t("ocrAuxModel")} desc={t("ocrAuxModelDesc")}>
+                <Select
+                  value={ai.ocrAuxModelName ?? DEFAULT_AUX_MODEL}
+                  onChange={(value) =>
+                    setAi({
+                      ...ai,
+                      ocrAuxModelName: String(value),
+                    })
+                  }
+                  className="w-56"
+                  options={OCR_DETECTION_MODELS.map((model) => ({
+                    value: model.id,
+                    label: model.name,
+                  }))}
+                />
+              </SettingRow>
+            )}
           </SettingGroup>
         )}
       </div>

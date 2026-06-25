@@ -27,7 +27,7 @@ export const zhCN: Record<string, string> = {
   ocrRecognitionModel: "OCR 识别模型",
   ocrDesc: "选择文字识别使用的 OCR 引擎。",
   ocrAuxModel: "OCR 检测模型",
-  ocrAuxModelDesc: "选择为混合 OCR 提供文字区域定位的检测模型。",
+  ocrAuxModelDesc: "当前识别模型不提供文字区域坐标，需要选择一个检测模型补充定位。",
   save: "保存",
   reset: "还原",
   unsavedSettings: "有未保存的设置更改",
@@ -93,7 +93,7 @@ export const enUS: Record<string, string> = {
   ocrDesc: "Choose the OCR engine used for text recognition.",
   ocrAuxModel: "OCR Detection Model",
   ocrAuxModelDesc:
-    "Choose the detection model that provides text-region positioning for hybrid OCR.",
+    "The selected recognition model does not provide text-region coordinates, so a detection model is needed for positioning.",
   save: "Save",
   reset: "Reset",
   unsavedSettings: "You have unsaved settings changes",
