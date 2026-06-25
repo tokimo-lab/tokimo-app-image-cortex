@@ -61,7 +61,7 @@ function ImageCortexWindow({ ctx }: { ctx: AppRuntimeCtx }) {
 
       <main className="flex-1 overflow-auto p-4">
         {tab === "analyze" && <AnalyzePanel t={t} ctx={ctx} />}
-        {tab === "health" && <HealthStatus t={t} />}
+        {tab === "health" && <HealthStatus t={t} ctx={ctx} />}
         {tab === "settings" && (
           <SettingsPanel t={t} onOpenAiModels={openAiModels} />
         )}
@@ -74,7 +74,7 @@ export default defineApp({
   id: "image-cortex",
   manifest: {
     id: "image-cortex",
-    appName: "Image Cortex",
+    appName: "Media Inspector",
     icon: "Brain",
     color: "#6366f1",
     windowType: "image-cortex",

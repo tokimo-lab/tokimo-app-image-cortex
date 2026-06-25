@@ -1,27 +1,15 @@
-import type {
-  ClipResult,
-  FaceResult,
-  GpsResult,
-  OcrResult,
-} from "../api/client";
-
-interface AnalyzeResultData {
-  path: string;
-  ocr: OcrResult | null;
-  face: FaceResult | null;
-  clip: ClipResult | null;
-  gps: GpsResult | null;
-}
+import type { MediaAnalyzeImageResponse } from "@tokimo/sdk";
 
 interface Props {
-  result: AnalyzeResultData;
+  path: string;
+  result: MediaAnalyzeImageResponse;
   t: (key: string) => string;
 }
 
-export function ResultViewer({ result, t }: Props) {
+export function ResultViewer({ path, result, t }: Props) {
   return (
     <div className="flex flex-col gap-4">
-      <div className="text-xs opacity-50">{result.path}</div>
+      <div className="text-xs opacity-50">{path}</div>
 
       {result.ocr && (
         <section className="rounded border border-black/10 dark:border-white/10 p-3">
@@ -54,17 +42,17 @@ export function ResultViewer({ result, t }: Props) {
             <div className="flex flex-col gap-2">
               {result.face.faces.map((face) => (
                 <div
-                  key={`${face.x}-${face.y}`}
+                  key={face.bbox.join("-")}
                   className="rounded bg-black/[0.03] dark:bg-white/[0.03] p-2 text-xs"
                 >
                   <div>
                     {t("confidence")}: {(face.confidence * 100).toFixed(1)}%
                   </div>
                   <div>
-                    {t("coordinates")}: ({face.x}, {face.y}, {face.w}, {face.h})
+                    {t("coordinates")}: ({face.bbox.join(", ")})
                   </div>
                   <div>
-                    {t("dimensions")}: {face.embedding.length}
+                    {t("dimensions")}: {face.embedding?.length ?? 0}
                   </div>
                 </div>
               ))}

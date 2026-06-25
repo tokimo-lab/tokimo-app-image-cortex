@@ -1,15 +1,12 @@
-import type { AppRuntimeCtx } from "@tokimo/sdk";
-import { useJobSubscription } from "@tokimo/sdk";
+import type {
+  AppRuntimeCtx,
+  MediaAnalysisType,
+  MediaAnalyzeImageResponse,
+  MediaImageInput,
+} from "@tokimo/sdk";
 import { AppSetupGuide, type AppSetupGuideProps } from "@tokimo/ui";
 import { Brain, FolderOpen, ScanFace, Search, Sparkles } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import {
-  type AnalysisType,
-  type AnalyzeResponse,
-  api,
-  type JobStatusResponse,
-} from "../api/client";
-import { JobProgress } from "./JobProgress";
+import { useState } from "react";
 import { ResultViewer } from "./ResultViewer";
 
 type GuideIcon = AppSetupGuideProps["features"][number]["icon"];
@@ -21,53 +18,51 @@ interface Props {
   ctx: AppRuntimeCtx;
 }
 
-const ANALYSIS_TYPES: AnalysisType[] = ["ocr", "face", "clip", "gps", "all"];
+const ANALYSIS_TYPES: MediaAnalysisType[] = ["ocr", "face", "clip", "gps", "all"];
+
+function filenameFromPath(path: string): string | null {
+  const name = path.split("/").filter(Boolean).pop();
+  return name || null;
+}
+
+function parseImageInput(
+  sourceId: string,
+  path: string,
+  fallbackError: string,
+): MediaImageInput {
+  if (sourceId && path) {
+    return {
+      kind: "vfs",
+      sourceId,
+      path,
+      filename: filenameFromPath(path),
+    };
+  }
+
+  const trimmed = path.trim();
+  const match = /^vfs:\/\/([^/]+)(\/.*)$/.exec(trimmed);
+  if (match) {
+    return {
+      kind: "vfs",
+      sourceId: match[1],
+      path: match[2],
+      filename: filenameFromPath(match[2]),
+    };
+  }
+
+  throw new Error(fallbackError);
+}
 
 export function AnalyzePanel({ t, ctx }: Props) {
   const [sourceId, setSourceId] = useState("");
   const [sourceName, setSourceName] = useState("");
   const [path, setPath] = useState("");
-  const [analysisType, setAnalysisType] = useState<AnalysisType>("all");
-  const [jobId, setJobId] = useState<string | null>(null);
-  const [jobResult, setJobResult] = useState<JobStatusResponse | null>(null);
+  const [analysisType, setAnalysisType] = useState<MediaAnalysisType>("all");
+  const [result, setResult] = useState<MediaAnalyzeImageResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const completedRef = useRef(false);
 
   const fullPath = sourceId && path ? `vfs://${sourceId}${path}` : path;
-
-  // WS-first: subscribe to real-time updates.
-  useJobSubscription(jobId, (event) => {
-    const job = (event.data as { job?: JobStatusResponse })?.job;
-    if (job) {
-      setJobResult(job);
-      if (
-        (job.status === "completed" || job.status === "failed") &&
-        !completedRef.current
-      ) {
-        completedRef.current = true;
-      }
-    }
-  });
-
-  // Initial state sync: fetch current job state immediately after subscribing
-  // to close the race window between job creation and WS subscription.
-  useEffect(() => {
-    if (!jobId) return;
-    if (completedRef.current) return;
-
-    api
-      .getJob(jobId)
-      .then((job) => {
-        setJobResult(job);
-        if (job.status === "completed" || job.status === "failed") {
-          completedRef.current = true;
-        }
-      })
-      .catch(() => {
-        // job may not exist yet, WS will deliver updates
-      });
-  }, [jobId]);
 
   const handlePickFile = async () => {
     const binding = await ctx.shell.pickStorageBinding({
@@ -87,12 +82,14 @@ export function AnalyzePanel({ t, ctx }: Props) {
     if (!target) return;
     setLoading(true);
     setError(null);
-    setJobId(null);
-    setJobResult(null);
-    completedRef.current = false;
+    setResult(null);
     try {
-      const resp = await api.analyze({ path: target, analysisType });
-      setJobId(resp.jobId);
+      const image = parseImageInput(sourceId, path, t("pickStorageRequired"));
+      const resp = await ctx.shell.mediaIntelligence.analyzeImage({
+        image,
+        analysisType,
+      });
+      setResult(resp);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -100,11 +97,7 @@ export function AnalyzePanel({ t, ctx }: Props) {
     }
   };
 
-  const finalResult =
-    jobResult?.status === "completed" && jobResult.data
-      ? (jobResult.data as AnalyzeResponse)
-      : null;
-  const isInitialEmpty = !sourceId && !path && !jobId && !jobResult && !error;
+  const isInitialEmpty = !sourceId && !path && !result && !error;
 
   if (isInitialEmpty) {
     return (
@@ -148,7 +141,7 @@ export function AnalyzePanel({ t, ctx }: Props) {
             placeholder={
               sourceId ? t("pathPlaceholder") : t("pathOrPickPlaceholder")
             }
-            className="flex-1 bg-transparent outline-none min-w-0"
+            className="min-w-0 flex-1 bg-transparent outline-none"
             onKeyDown={(e) => e.key === "Enter" && handleAnalyze()}
           />
         </div>
@@ -193,9 +186,7 @@ export function AnalyzePanel({ t, ctx }: Props) {
         </div>
       )}
 
-      {jobId && <JobProgress jobId={jobId} result={jobResult} t={t} />}
-
-      {finalResult && <ResultViewer result={finalResult} t={t} />}
+      {result && <ResultViewer path={fullPath} result={result} t={t} />}
     </div>
   );
 }
