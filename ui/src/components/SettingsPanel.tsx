@@ -1,5 +1,12 @@
-import { useEffect, useState, type ReactNode } from "react";
-import { Button, Input, Select, Spin, Switch } from "@tokimo/ui";
+import { useEffect, useMemo, useState } from "react";
+import {
+  Input,
+  Select,
+  SettingGroup,
+  SettingRow,
+  Spin,
+  StickySaveBar,
+} from "@tokimo/ui";
 import { type AiSettings, api, type GeoSettings } from "../api/client";
 
 interface Props {
@@ -50,6 +57,8 @@ function setGeoApiKey(geo: GeoSettings, value: string): GeoSettings {
 export function SettingsPanel({ t }: Props) {
   const [geo, setGeo] = useState<GeoSettings | null>(null);
   const [ai, setAi] = useState<AiSettings | null>(null);
+  const [initialGeo, setInitialGeo] = useState<GeoSettings | null>(null);
+  const [initialAi, setInitialAi] = useState<AiSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -58,28 +67,50 @@ export function SettingsPanel({ t }: Props) {
       .then(([g, a]) => {
         setGeo(g);
         setAi(a);
+        setInitialGeo(g);
+        setInitialAi(a);
       })
       .finally(() => setLoading(false));
   }, []);
 
-  const handleSaveGeo = async () => {
-    if (!geo) return;
+  const geoDirty = useMemo(
+    () =>
+      geo != null &&
+      initialGeo != null &&
+      JSON.stringify(geo) !== JSON.stringify(initialGeo),
+    [geo, initialGeo],
+  );
+
+  const aiDirty = useMemo(
+    () =>
+      ai != null &&
+      initialAi != null &&
+      JSON.stringify(ai) !== JSON.stringify(initialAi),
+    [ai, initialAi],
+  );
+
+  const dirty = geoDirty || aiDirty;
+
+  const handleSaveSettings = async () => {
+    if (!dirty) return;
     setSaving(true);
     try {
-      await api.updateGeoSettings(geo);
+      if (geo && geoDirty) {
+        await api.updateGeoSettings(geo);
+        setInitialGeo(geo);
+      }
+      if (ai && aiDirty) {
+        await api.updateAiSettings(ai);
+        setInitialAi(ai);
+      }
     } finally {
       setSaving(false);
     }
   };
 
-  const handleSaveAi = async () => {
-    if (!ai) return;
-    setSaving(true);
-    try {
-      await api.updateAiSettings(ai);
-    } finally {
-      setSaving(false);
-    }
+  const handleResetSettings = () => {
+    setGeo(initialGeo);
+    setAi(initialAi);
   };
 
   if (loading) {
@@ -91,94 +122,87 @@ export function SettingsPanel({ t }: Props) {
   }
 
   return (
-    <div className="flex max-w-2xl flex-col gap-6">
-      {geo && (
-        <section className="space-y-3">
-          <h3 className="text-sm font-semibold text-fg-primary">
-            {t("geoSettings")}
-          </h3>
-          <SettingRow label={t("enabled")}>
-            <Switch
-              checked={geo.enabled}
-              onChange={(enabled) => setGeo({ ...geo, enabled })}
-            />
-          </SettingRow>
-          <SettingRow label={t("provider")}>
-            <Select
-              value={geo.provider}
-              onChange={(provider) =>
-                setGeo({ ...geo, provider: String(provider) })
-              }
-              options={GEO_PROVIDER_OPTIONS}
-              className="w-56"
-            />
-          </SettingRow>
-          <SettingRow label={t("apiKey")}>
-            <Input.Password
-              value={getGeoApiKey(geo)}
-              onChange={(e) => setGeo(setGeoApiKey(geo, e.target.value))}
-              className="w-72"
-            />
-          </SettingRow>
-          <Button
-            variant="primary"
-            size="small"
-            onClick={handleSaveGeo}
-            loading={saving}
-          >
-            {t("save")}
-          </Button>
-        </section>
-      )}
+    <div className="relative flex min-h-full flex-col">
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-base font-semibold leading-tight text-fg-primary">
+            {t("settingsTitle")}
+          </h2>
+          <p className="mt-1 max-w-2xl text-xs leading-relaxed text-fg-muted">
+            {t("settingsDescription")}
+          </p>
+        </div>
+      </div>
 
-      {ai && (
-        <section className="space-y-3">
-          <h3 className="text-sm font-semibold text-fg-primary">
-            {t("aiSettings")}
-          </h3>
-          <SettingRow label="OCR">
-            <Switch
-              checked={ai.ocrEnabled}
-              onChange={(ocrEnabled) => setAi({ ...ai, ocrEnabled })}
-            />
-          </SettingRow>
-          <SettingRow label="Face">
-            <Switch
-              checked={ai.faceEnabled}
-              onChange={(faceEnabled) => setAi({ ...ai, faceEnabled })}
-            />
-          </SettingRow>
-          <SettingRow label="CLIP">
-            <Switch
-              checked={ai.clipEnabled}
-              onChange={(clipEnabled) => setAi({ ...ai, clipEnabled })}
-            />
-          </SettingRow>
-          <Button
-            variant="primary"
-            size="small"
-            onClick={handleSaveAi}
-            loading={saving}
+      <div className={`w-full max-w-3xl space-y-6 ${dirty ? "pb-20" : ""}`}>
+        {geo && (
+          <SettingGroup
+            title={t("geoSettings")}
+            desc={t("geoSettingsDescription")}
           >
-            {t("save")}
-          </Button>
-        </section>
-      )}
-    </div>
-  );
-}
+            <SettingRow label={t("provider")} desc={t("providerDesc")}>
+              <Select
+                value={geo.provider}
+                onChange={(provider) =>
+                  setGeo({ ...geo, provider: String(provider) })
+                }
+                options={GEO_PROVIDER_OPTIONS}
+                className="w-56"
+              />
+            </SettingRow>
+            <SettingRow
+              orientation="vertical"
+              label={t("apiKey")}
+              desc={t("apiKeyDesc")}
+            >
+              <Input.Password
+                value={getGeoApiKey(geo)}
+                onChange={(e) => setGeo(setGeoApiKey(geo, e.target.value))}
+                className="w-full max-w-md"
+              />
+            </SettingRow>
+          </SettingGroup>
+        )}
 
-function SettingRow({
-  label,
-  children,
-}: {
-  label: string;
-  children: ReactNode;
-}) {
-  return (
-    <div className="flex min-h-8 items-center justify-between gap-4 text-xs">
-      <span className="text-fg-secondary">{label}</span>
-      <div className="flex min-w-0 justify-end">{children}</div>
+        {ai && (
+          <SettingGroup
+            title={t("aiSettings")}
+            desc={t("aiSettingsDescription")}
+          >
+            <SettingRow label="OCR" desc={t("ocrDesc")}>
+              <Input
+                value={ai.ocrModelName}
+                onChange={(e) =>
+                  setAi({ ...ai, ocrModelName: e.target.value })
+                }
+                className="w-56"
+              />
+            </SettingRow>
+            <SettingRow label={t("ocrAuxModel")} desc={t("ocrAuxModelDesc")}>
+              <Input
+                value={ai.ocrAuxModelName ?? ""}
+                onChange={(e) =>
+                  setAi({
+                    ...ai,
+                    ocrAuxModelName: e.target.value || null,
+                  })
+                }
+                className="w-56"
+              />
+            </SettingRow>
+          </SettingGroup>
+        )}
+      </div>
+
+      <StickySaveBar
+        dirty={dirty}
+        loading={saving}
+        onSave={handleSaveSettings}
+        onReset={handleResetSettings}
+        message={t("unsavedSettings")}
+        saveLabel={t("save")}
+        resetLabel={t("reset")}
+      />
     </div>
   );
 }

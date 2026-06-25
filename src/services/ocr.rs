@@ -37,9 +37,6 @@ pub async fn analyze(
     settings: &AiSettings,
     request_id: Option<String>,
 ) -> Result<OcrResult, AppError> {
-    if !settings.ocr_enabled {
-        return Err(AppError::Internal("OCR not enabled".into()));
-    }
     if !ai.is_ocr_enabled() || !ai.ocr_models_ready() {
         return Err(AppError::Internal("OCR model files not found".into()));
     }

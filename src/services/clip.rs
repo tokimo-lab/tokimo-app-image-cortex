@@ -16,12 +16,9 @@ pub struct ClipResult {
 pub async fn analyze(
     ai: &AiWorkerClient,
     image_bytes: Vec<u8>,
-    settings: &AiSettings,
+    _settings: &AiSettings,
     request_id: Option<String>,
 ) -> Result<ClipResult, AppError> {
-    if !settings.clip_enabled {
-        return Err(AppError::Internal("CLIP not enabled".into()));
-    }
     if !ai.is_clip_enabled() || !ai.clip_models_ready() {
         return Err(AppError::Internal("CLIP model files not found".into()));
     }

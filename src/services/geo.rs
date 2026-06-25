@@ -22,24 +22,12 @@ pub struct GpsResult {
 pub async fn analyze(http: &Client, image_bytes: &[u8], settings: &GeoSettings) -> Result<GpsResult, AppError> {
     let (lat, lon) = extract_gps(image_bytes)?;
 
-    if !settings.enabled {
-        return Ok(GpsResult {
-            latitude: lat,
-            longitude: lon,
-            province: None,
-            city: None,
-            district: None,
-            formatted_address: None,
-        });
-    }
-
     let geo_client = GeocodingClient::new(http.clone());
     let geo = match settings.provider.as_str() {
         "amap" => {
-            let key = settings
-                .amap_api_key
-                .as_deref()
-                .ok_or_else(|| AppError::BadRequest("Amap API key not configured".into()))?;
+            let Some(key) = settings.amap_api_key.as_deref() else {
+                return Ok(coordinates_only(lat, lon));
+            };
             let secret = settings.amap_secret.as_deref();
             geo_client
                 .amap_reverse_geocode(key, secret, lon, lat)
@@ -47,10 +35,9 @@ pub async fn analyze(http: &Client, image_bytes: &[u8], settings: &GeoSettings) 
                 .map_err(|e| AppError::Internal(e.to_string()))?
         }
         "qqmap" => {
-            let key = settings
-                .qqmap_api_key
-                .as_deref()
-                .ok_or_else(|| AppError::BadRequest("QQ Map API key not configured".into()))?;
+            let Some(key) = settings.qqmap_api_key.as_deref() else {
+                return Ok(coordinates_only(lat, lon));
+            };
             let secret = settings.qqmap_secret_key.as_deref();
             geo_client
                 .qqmap_reverse_geocode(key, secret, lon, lat)
@@ -58,30 +45,27 @@ pub async fn analyze(http: &Client, image_bytes: &[u8], settings: &GeoSettings) 
                 .map_err(|e| AppError::Internal(e.to_string()))?
         }
         "tianditu" => {
-            let key = settings
-                .tianditu_server_key
-                .as_deref()
-                .ok_or_else(|| AppError::BadRequest("Tianditu server key not configured".into()))?;
+            let Some(key) = settings.tianditu_server_key.as_deref() else {
+                return Ok(coordinates_only(lat, lon));
+            };
             geo_client
                 .tianditu_reverse_geocode(key, lon, lat)
                 .await
                 .map_err(|e| AppError::Internal(e.to_string()))?
         }
         "mapbox" => {
-            let token = settings
-                .mapbox_access_token
-                .as_deref()
-                .ok_or_else(|| AppError::BadRequest("Mapbox access token not configured".into()))?;
+            let Some(token) = settings.mapbox_access_token.as_deref() else {
+                return Ok(coordinates_only(lat, lon));
+            };
             geo_client
                 .mapbox_reverse_geocode(token, lon, lat)
                 .await
                 .map_err(|e| AppError::Internal(e.to_string()))?
         }
         "maptiler" => {
-            let key = settings
-                .maptiler_api_key
-                .as_deref()
-                .ok_or_else(|| AppError::BadRequest("MapTiler API key not configured".into()))?;
+            let Some(key) = settings.maptiler_api_key.as_deref() else {
+                return Ok(coordinates_only(lat, lon));
+            };
             geo_client
                 .maptiler_reverse_geocode(key, lon, lat)
                 .await
@@ -98,6 +82,17 @@ pub async fn analyze(http: &Client, image_bytes: &[u8], settings: &GeoSettings) 
         district: geo.district,
         formatted_address: geo.address,
     })
+}
+
+fn coordinates_only(latitude: f64, longitude: f64) -> GpsResult {
+    GpsResult {
+        latitude,
+        longitude,
+        province: None,
+        city: None,
+        district: None,
+        formatted_address: None,
+    }
 }
 
 fn extract_gps(image_bytes: &[u8]) -> Result<(f64, f64), AppError> {

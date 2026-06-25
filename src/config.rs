@@ -6,7 +6,6 @@ use crate::db::repos::system_config_repo::SystemConfigSection;
 #[serde(rename_all = "camelCase")]
 pub struct GeoSettings {
     pub provider: String,
-    pub enabled: bool,
     pub amap_api_key: Option<String>,
     pub amap_secret: Option<String>,
     pub qqmap_api_key: Option<String>,
@@ -22,7 +21,6 @@ impl SystemConfigSection for GeoSettings {
     fn default_value() -> Self {
         Self {
             provider: "amap".to_string(),
-            enabled: false,
             amap_api_key: None,
             amap_secret: None,
             qqmap_api_key: None,
@@ -37,9 +35,6 @@ impl SystemConfigSection for GeoSettings {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AiSettings {
-    pub ocr_enabled: bool,
-    pub face_enabled: bool,
-    pub clip_enabled: bool,
     #[serde(default = "default_ocr_model")]
     pub ocr_model_name: String,
     #[serde(default)]
@@ -55,9 +50,6 @@ impl SystemConfigSection for AiSettings {
     const SCOPE_ID: &'static str = "ai";
     fn default_value() -> Self {
         Self {
-            ocr_enabled: true,
-            face_enabled: true,
-            clip_enabled: true,
             ocr_model_name: default_ocr_model(),
             ocr_aux_model_name: None,
         }

@@ -86,7 +86,6 @@ export interface CapabilitiesResponse {
 
 export interface GeoSettings {
   provider: string;
-  enabled: boolean;
   amapApiKey: string | null;
   amapSecret: string | null;
   qqmapApiKey: string | null;
@@ -97,9 +96,6 @@ export interface GeoSettings {
 }
 
 export interface AiSettings {
-  ocrEnabled: boolean;
-  faceEnabled: boolean;
-  clipEnabled: boolean;
   ocrModelName: string;
   ocrAuxModelName: string | null;
 }

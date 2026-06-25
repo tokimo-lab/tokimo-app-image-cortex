@@ -29,12 +29,9 @@ pub struct FaceItem {
 pub async fn analyze(
     ai: &AiWorkerClient,
     image_bytes: Vec<u8>,
-    settings: &AiSettings,
+    _settings: &AiSettings,
     request_id: Option<String>,
 ) -> Result<FaceResult, AppError> {
-    if !settings.face_enabled {
-        return Err(AppError::Internal("Face recognition not enabled".into()));
-    }
     if !ai.is_face_enabled() || !ai.face_models_ready() {
         return Err(AppError::Internal("Face model files not found".into()));
     }

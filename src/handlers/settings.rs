@@ -15,7 +15,6 @@ use crate::state::AppState;
 #[ts(export)]
 pub struct GeoSettingsOutput {
     pub provider: String,
-    pub enabled: bool,
     pub amap_api_key: Option<String>,
     pub amap_secret: Option<String>,
     pub qqmap_api_key: Option<String>,
@@ -29,7 +28,6 @@ impl From<GeoSettings> for GeoSettingsOutput {
     fn from(s: GeoSettings) -> Self {
         Self {
             provider: s.provider,
-            enabled: s.enabled,
             amap_api_key: s.amap_api_key,
             amap_secret: s.amap_secret,
             qqmap_api_key: s.qqmap_api_key,
@@ -50,7 +48,6 @@ pub async fn get_geo(State(state): State<Arc<AppState>>) -> Result<Json<GeoSetti
 #[serde(rename_all = "camelCase")]
 pub struct UpdateGeoRequest {
     pub provider: Option<String>,
-    pub enabled: Option<bool>,
     pub amap_api_key: Option<String>,
     pub amap_secret: Option<String>,
     pub qqmap_api_key: Option<String>,
@@ -67,7 +64,6 @@ pub async fn update_geo(
     let current: GeoSettings = SystemConfigRepo::get(&state.db).await?;
     let updated = GeoSettings {
         provider: req.provider.unwrap_or(current.provider),
-        enabled: req.enabled.unwrap_or(current.enabled),
         amap_api_key: req.amap_api_key.or(current.amap_api_key),
         amap_secret: req.amap_secret.or(current.amap_secret),
         qqmap_api_key: req.qqmap_api_key.or(current.qqmap_api_key),
@@ -85,9 +81,6 @@ pub async fn update_geo(
 #[derive(TS)]
 #[ts(export)]
 pub struct AiSettingsOutput {
-    pub ocr_enabled: bool,
-    pub face_enabled: bool,
-    pub clip_enabled: bool,
     pub ocr_model_name: String,
     pub ocr_aux_model_name: Option<String>,
 }
@@ -95,9 +88,6 @@ pub struct AiSettingsOutput {
 impl From<AiSettings> for AiSettingsOutput {
     fn from(s: AiSettings) -> Self {
         Self {
-            ocr_enabled: s.ocr_enabled,
-            face_enabled: s.face_enabled,
-            clip_enabled: s.clip_enabled,
             ocr_model_name: s.ocr_model_name,
             ocr_aux_model_name: s.ocr_aux_model_name,
         }
@@ -112,9 +102,6 @@ pub async fn get_ai(State(state): State<Arc<AppState>>) -> Result<Json<AiSetting
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateAiRequest {
-    pub ocr_enabled: Option<bool>,
-    pub face_enabled: Option<bool>,
-    pub clip_enabled: Option<bool>,
     pub ocr_model_name: Option<String>,
     pub ocr_aux_model_name: Option<String>,
 }
@@ -125,9 +112,6 @@ pub async fn update_ai(
 ) -> Result<Json<AiSettingsOutput>, AppError> {
     let current: AiSettings = SystemConfigRepo::get(&state.db).await?;
     let updated = AiSettings {
-        ocr_enabled: req.ocr_enabled.unwrap_or(current.ocr_enabled),
-        face_enabled: req.face_enabled.unwrap_or(current.face_enabled),
-        clip_enabled: req.clip_enabled.unwrap_or(current.clip_enabled),
         ocr_model_name: req.ocr_model_name.unwrap_or(current.ocr_model_name),
         ocr_aux_model_name: req.ocr_aux_model_name.or(current.ocr_aux_model_name),
     };
