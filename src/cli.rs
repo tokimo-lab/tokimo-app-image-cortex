@@ -8,7 +8,7 @@ use crate::{
 pub async fn run_analyze(path: String, analysis_type: String) -> anyhow::Result<()> {
     let db = init_pool().await.context("connect database failed")?;
 
-    let _ai_settings: crate::config::AiSettings = {
+    let ai_settings: crate::config::AiSettings = {
         use crate::db::repos::system_config_repo::SystemConfigRepo;
         SystemConfigRepo::get(&db)
             .await
@@ -41,15 +41,15 @@ pub async fn run_analyze(path: String, analysis_type: String) -> anyhow::Result<
 
     let response = match req.analysis_type {
         crate::handlers::analyze::AnalysisType::Ocr => {
-            let ocr = services::ocr::analyze(&ai_worker, image_bytes).await?;
+            let ocr = services::ocr::analyze(&ai_worker, image_bytes, &ai_settings, None).await?;
             serde_json::json!({ "path": req.path, "ocr": ocr })
         }
         crate::handlers::analyze::AnalysisType::Face => {
-            let face = services::face::analyze(&ai_worker, image_bytes).await?;
+            let face = services::face::analyze(&ai_worker, image_bytes, &ai_settings, None).await?;
             serde_json::json!({ "path": req.path, "face": face })
         }
         crate::handlers::analyze::AnalysisType::Clip => {
-            let clip = services::clip::analyze(&ai_worker, image_bytes).await?;
+            let clip = services::clip::analyze(&ai_worker, image_bytes, &ai_settings, None).await?;
             serde_json::json!({ "path": req.path, "clip": clip })
         }
         crate::handlers::analyze::AnalysisType::Gps => {
@@ -65,17 +65,62 @@ pub async fn run_analyze(path: String, analysis_type: String) -> anyhow::Result<
         crate::handlers::analyze::AnalysisType::All => {
             let geo_settings = crate::config::GeoSettings::default_value();
             let (ocr_r, face_r, clip_r, gps_r) = tokio::join!(
-                services::ocr::analyze(&ai_worker, image_bytes.clone()),
-                services::face::analyze(&ai_worker, image_bytes.clone()),
-                services::clip::analyze(&ai_worker, image_bytes.clone()),
+                services::ocr::analyze(
+                    &ai_worker,
+                    image_bytes.clone(),
+                    &ai_settings,
+                    Some("cli:ocr".to_string())
+                ),
+                services::face::analyze(
+                    &ai_worker,
+                    image_bytes.clone(),
+                    &ai_settings,
+                    Some("cli:face".to_string())
+                ),
+                services::clip::analyze(
+                    &ai_worker,
+                    image_bytes.clone(),
+                    &ai_settings,
+                    Some("cli:clip".to_string())
+                ),
                 services::geo::analyze(&http_client, &image_bytes, &geo_settings),
             );
+            let mut errors = serde_json::Map::new();
+            let ocr = match ocr_r {
+                Ok(value) => Some(value),
+                Err(err) => {
+                    errors.insert("ocr".into(), serde_json::json!(err.to_string()));
+                    None
+                }
+            };
+            let face = match face_r {
+                Ok(value) => Some(value),
+                Err(err) => {
+                    errors.insert("face".into(), serde_json::json!(err.to_string()));
+                    None
+                }
+            };
+            let clip = match clip_r {
+                Ok(value) => Some(value),
+                Err(err) => {
+                    errors.insert("clip".into(), serde_json::json!(err.to_string()));
+                    None
+                }
+            };
+            let gps = match gps_r {
+                Ok(value) => Some(value),
+                Err(err) => {
+                    errors.insert("gps".into(), serde_json::json!(err.to_string()));
+                    None
+                }
+            };
             serde_json::json!({
                 "path": req.path,
-                "ocr": ocr_r.ok(),
-                "face": face_r.ok(),
-                "clip": clip_r.ok(),
-                "gps": gps_r.ok(),
+                "ocr": ocr,
+                "face": face,
+                "clip": clip,
+                "gps": gps,
+                "errors": errors,
             })
         }
     };

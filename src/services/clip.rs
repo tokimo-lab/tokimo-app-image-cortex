@@ -2,6 +2,7 @@ use serde::Serialize;
 use tokimo_perception::worker::client::AiWorkerClient;
 use ts_rs::TS;
 
+use crate::config::AiSettings;
 use crate::error::AppError;
 
 #[derive(Debug, Clone, Serialize)]
@@ -12,9 +13,21 @@ pub struct ClipResult {
     pub embedding: Vec<f32>,
 }
 
-pub async fn analyze(ai: &AiWorkerClient, image_bytes: Vec<u8>) -> Result<ClipResult, AppError> {
+pub async fn analyze(
+    ai: &AiWorkerClient,
+    image_bytes: Vec<u8>,
+    settings: &AiSettings,
+    request_id: Option<String>,
+) -> Result<ClipResult, AppError> {
+    if !settings.clip_enabled {
+        return Err(AppError::Internal("CLIP not enabled".into()));
+    }
+    if !ai.is_clip_enabled() || !ai.clip_models_ready() {
+        return Err(AppError::Internal("CLIP model files not found".into()));
+    }
+
     let embedding = ai
-        .clip_image(image_bytes, None)
+        .clip_image(image_bytes, request_id)
         .await
         .map_err(|e| AppError::Internal(format!("CLIP failed: {e}")))?;
 

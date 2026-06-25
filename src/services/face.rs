@@ -2,6 +2,7 @@ use serde::Serialize;
 use tokimo_perception::worker::client::AiWorkerClient;
 use ts_rs::TS;
 
+use crate::config::AiSettings;
 use crate::error::AppError;
 
 #[derive(Debug, Clone, Serialize)]
@@ -25,9 +26,21 @@ pub struct FaceItem {
     pub embedding: Vec<f32>,
 }
 
-pub async fn analyze(ai: &AiWorkerClient, image_bytes: Vec<u8>) -> Result<FaceResult, AppError> {
+pub async fn analyze(
+    ai: &AiWorkerClient,
+    image_bytes: Vec<u8>,
+    settings: &AiSettings,
+    request_id: Option<String>,
+) -> Result<FaceResult, AppError> {
+    if !settings.face_enabled {
+        return Err(AppError::Internal("Face recognition not enabled".into()));
+    }
+    if !ai.is_face_enabled() || !ai.face_models_ready() {
+        return Err(AppError::Internal("Face model files not found".into()));
+    }
+
     let detections = ai
-        .detect_faces(image_bytes, None)
+        .detect_faces(image_bytes, request_id)
         .await
         .map_err(|e| AppError::Internal(format!("Face detection failed: {e}")))?;
 

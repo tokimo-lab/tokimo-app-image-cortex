@@ -14,6 +14,8 @@ export interface OcrItem {
   angle: number;
   score: number | null;
   paragraphId: number;
+  charPositions: unknown | null;
+  positioningType: string;
   corners: [number, number][] | null;
 }
 
@@ -53,6 +55,7 @@ export interface AnalyzeResponse {
   face: FaceResult | null;
   clip: ClipResult | null;
   gps: GpsResult | null;
+  errors?: Record<string, string>;
 }
 
 export interface AnalyzeJobResponse {
